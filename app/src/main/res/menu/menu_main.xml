@@ -1,0 +1,18 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
+    <item android:id="@+id/suplast" android:title="Supprimer derniere entrée"
+        android:orderInCategory="100" app:showAsAction="never" android:icon="@raw/deletered" />
+    <item android:id="@+id/historique" android:title="Historique"
+        android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/identifiants" android:title="Connexion"
+        android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/sync" android:title="Synchroniser"
+        android:orderInCategory="100" app:showAsAction="never"/>
+    <item android:id="@+id/getdata" android:title="MAJ clients/stocks"
+        android:orderInCategory="100" app:showAsAction="never"/>
+    <item android:id="@+id/blank" android:title="" android:orderInCategory="120"/>
+        android:orderInCategory="100" app:showAsAction="never" />
+    <item android:id="@+id/supall" android:title="SUPPRIMER TOUT"
+        android:orderInCategory="130" app:showAsAction="never"/>
+</menu>

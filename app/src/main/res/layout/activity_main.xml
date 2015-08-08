@@ -1,0 +1,122 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="10dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp" tools:context=".MainActivity"
+    android:orientation="vertical" android:gravity="center_horizontal"
+    android:background="@android:color/white">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/mainlayout"
+        android:orientation="vertical"
+        android:visibility="visible">
+        <ImageButton android:id="@+id/param"
+            android:src="@raw/param"
+            android:background="@android:color/transparent"
+            android:layout_gravity="end"
+            android:layout_height="40dp"
+            android:layout_width="40dp"
+            android:scaleType="fitXY"/>
+        <ImageView android:id="@+id/logo"
+            android:src="@raw/logo"
+            android:background="@android:color/transparent"
+            android:layout_gravity="center_horizontal"
+            android:layout_height="200dp"
+            android:layout_width="200dp" />
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="30dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="horizontal">
+            <Space
+                android:layout_width="80dp"
+                android:layout_height="wrap_content" />
+            <MultiAutoCompleteTextView android:id="@+id/Nomprenom"
+                android:hint="Nom"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords"
+                android:imeOptions="actionNext"    />
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="wrap_content" />
+            <TextView
+                android:id="@+id/solde"
+                android:layout_width="70dp"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="20sp"
+                android:textColor="#DE2829"/>
+        </LinearLayout>
+
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="15dp" />
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal">
+            <Space
+                android:layout_width="80dp"
+                android:layout_height="wrap_content" />
+            <AutoCompleteTextView android:id="@+id/conso"
+                android:hint="Conso"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:inputType="textCapWords"
+                android:imeOptions="actionDone" />
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="wrap_content" />
+            <TextView
+                android:id="@+id/prix"
+                android:layout_width="70dp"
+                android:layout_height="30dp"
+                android:text=""
+                android:textColor="#DE2829"
+                android:textSize="20sp"/>
+        </LinearLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="5dp" />
+
+        <TextView
+            android:id="@+id/info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:text=""
+            android:textColor="@android:color/holo_red_dark"/>
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="25dp" />
+        <Button android:id="@+id/boutonOk"
+            android:layout_width="120dp"
+            android:layout_height="70dp"
+            android:text="OK"
+            android:textSize="40sp"
+            android:background="#DE2627"
+            android:textColor="#FFFFFF"
+            android:layout_gravity="center_horizontal"/>
+
+    </LinearLayout>
+    <ListView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/list"
+        android:visibility="gone">
+    </ListView>
+</FrameLayout>
+

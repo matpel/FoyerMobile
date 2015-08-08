@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">FoyerMobile</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_id">idActivity</string>
+    <string name="title_activity_historique">Historique</string>
+</resources>
