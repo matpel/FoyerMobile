@@ -7,7 +7,6 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
@@ -30,7 +29,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,19 +36,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.Vector;
 
 
 public class MainActivity extends Activity {
 
     private  URL url_site;
-    private String token; //token fourni par l'APi uPont suite à la requête /login/username/id/password/mdp
+    private String token; //token fourni par l'API uPont suite à la requête /login/username/id/password/mdp
     private int code=0;//code erreur retourné par l'API
     private ListView hist=null; //historique des consos stockées sur le mobile
     private LinearLayout layout=null;
@@ -59,6 +55,8 @@ public class MainActivity extends Activity {
     private TextView info = null;//textview indiquant la dernière entrée (géré par getlastlog())
     private TextView solde=null;//champ indiquant le solde du dernier élève entré dans le champ nom
     private TextView prix=null;//champ indiquant le prix de la bière entrée dans conso
+    private Button ok = null;
+    private ImageButton param = null;
 
     private String id=null;
     private String mdp=null;
@@ -89,17 +87,17 @@ public class MainActivity extends Activity {
 
         hist=(ListView)findViewById(R.id.list);
         layout=(LinearLayout) findViewById(R.id.mainlayout);
-        ImageButton param = (ImageButton) findViewById(R.id.param);
+        param = (ImageButton) findViewById(R.id.param);
         nom = (MultiAutoCompleteTextView) findViewById(R.id.Nomprenom);
         conso = (AutoCompleteTextView) findViewById(R.id.conso);
-        Button ok = (Button) findViewById(R.id.boutonOk);
+        ok = (Button) findViewById(R.id.boutonOk);
         info = (TextView) findViewById(R.id.info);
         solde=(TextView) findViewById(R.id.solde);
         prix=(TextView)findViewById(R.id.prix);
         info.setText(getlastlog("registre.txt"));
         nom.setTokenizer(new MultiAutoCompleteTextView.CommaTokenizer());
-        adaptaterNoms = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, listNoms);
-        adaptaterConso = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, listConso);
+        adaptaterNoms = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listNoms);
+        adaptaterConso = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listConso);
 
         try {
             updateData(false);//on lit remplit les Vector élèves/consos d'après la dernière sauvegarde effectuée sur le mobile dans clients.txt et stocks.txt (false=pas de synchronisation via l'API, ce n'est pas utile de le faire à chaque fois).
@@ -162,14 +160,14 @@ public class MainActivity extends Activity {
                 }
             });
         }
-        registerForContextMenu(param);//on crée le contextMenu quis'ouvre en appuyant longuement sur le bouton en haut à droite
+        registerForContextMenu(param);//on définit la view param comme sujette au contextMenu--> un clic long dessus ouvre un menu
     }
 
 
 
     @Override
     public void onCreateContextMenu(ContextMenu m, View p, ContextMenu.ContextMenuInfo menuInfo) {
-
+        //Création du contectmenu suite à l'appui long sur la roue dentée en haut à droite
         super.onCreateContextMenu(m, p, menuInfo);
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main, m);
@@ -220,12 +218,12 @@ public class MainActivity extends Activity {
         switch (item.getItemId()) {
             case R.id.suplast: {
                 //si on veut supprimer la dernière entrée
-                int i = -1;
+                int i;
                 String s = "";
                 try {
                     InputStreamReader file = new InputStreamReader(openFileInput("registre.txt"));
                     BufferedReader buffreader = new BufferedReader(file);
-                    String line = "";
+                    String line;
                     try {
                         while ((line = buffreader.readLine()) != null)
                             s += line;
@@ -235,7 +233,7 @@ public class MainActivity extends Activity {
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-                i = s.lastIndexOf((char) '*');
+                i = s.lastIndexOf('*');
                 if (i > -1) {
                     try {
                         OutputStreamWriter out = new OutputStreamWriter(openFileOutput("registre.txt", MODE_PRIVATE));
@@ -276,7 +274,7 @@ public class MainActivity extends Activity {
                     try {
                         InputStreamReader file = new InputStreamReader(openFileInput("registre.txt"));
                         BufferedReader buffreader = new BufferedReader(file);
-                        String line = "", s = "";
+                        String line, s = "";
                         try {
                             while ((line = buffreader.readLine()) != null)
                                 s += line;
@@ -288,7 +286,7 @@ public class MainActivity extends Activity {
                         s = s + '*';//le format d'écriture des entrées dans registre.txt est *nom_eleve1:conso1*nom_eleve2:conso2....
                         Toast.makeText(getApplicationContext(), "Synchronisation...", Toast.LENGTH_SHORT).show();
                         while (s.indexOf('*', i) < s.length() - 1) {
-                            int k1 = 0, k2 = 0;
+                            int k1, k2;
                             k1 = listNoms.indexOf(s.substring(s.indexOf('*', i) + 1, s.indexOf(':', i)));
                             k2 = listConso.indexOf(s.substring(s.indexOf(':', i) + 1, s.indexOf('*', i + 1)));
                             Sync sync = new Sync(url_site, token,listIdConsos.elementAt(k2),listIdNom.elementAt(k1));
@@ -338,7 +336,7 @@ public class MainActivity extends Activity {
         try {
             InputStreamReader file = new InputStreamReader(openFileInput(name));
             BufferedReader buffreader = new BufferedReader(file);
-            String line = "";
+            String line;
             try {
                 while ((line = buffreader.readLine()) != null)
                     s += line;
@@ -403,9 +401,11 @@ public class MainActivity extends Activity {
 
         JSONArray json=new JSONArray(s);
         for(int i=0;i<json.length();i++){
-            listNoms.add(json.getJSONObject(i).optString("first_name")+" "+json.getJSONObject(i).optString("last_name"));
+            listNoms.add(json.getJSONObject(i).optString("first_name") + " " + json.getJSONObject(i).optString("last_name"));
             listIdNom.add(json.getJSONObject(i).optString("username"));
-            listSoldes.add(json.getJSONObject(i).optDouble("solde"));
+            if (json.getJSONObject(i).has("balance"))
+                listSoldes.add(json.getJSONObject(i).optDouble("balance"));
+            else listSoldes.add(0.);
         }
         adaptaterNoms.notifyDataSetChanged();
         Toast.makeText(getApplicationContext(),"Liste des eleves à jour",Toast.LENGTH_SHORT).show();
@@ -496,7 +496,7 @@ public class MainActivity extends Activity {
                                     InputStream is = connect.getInputStream();
                                     BufferedInputStream bis = new BufferedInputStream(connect.getInputStream());
                                     byte[] contents = new byte[1024];
-                                    int bytesRead = 0;
+                                    int bytesRead;
                                     while ((bytesRead = bis.read(contents)) != -1) {
                                         strJson += new String(contents, 0, bytesRead);
                                     }
@@ -525,7 +525,7 @@ public class MainActivity extends Activity {
 
     private void editHist(){
         listHist.removeAllElements();
-        InputStreamReader file = null;
+        InputStreamReader file;
         try {
             file = new InputStreamReader(openFileInput("registre.txt"));
         } catch (FileNotFoundException e) {
@@ -533,7 +533,7 @@ public class MainActivity extends Activity {
             return;
         }
         BufferedReader buffreader = new BufferedReader(file);
-        String line = "", s = "", strurl = "";
+        String line, s = "", strurl = "";
         try {
             while ((line = buffreader.readLine()) != null)
                 s += line;
