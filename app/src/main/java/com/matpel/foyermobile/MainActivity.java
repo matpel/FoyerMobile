@@ -12,6 +12,7 @@ import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -129,6 +130,7 @@ public class MainActivity extends Activity {
                 conso.setText("");
             }
         });
+        conso.setOnItemClickListener(consoItemListener);
 
         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
             //ce testest nécessaire pour définir le OnDismissListener plus bas
@@ -139,7 +141,8 @@ public class MainActivity extends Activity {
                         String nomString=nom.getText().toString();
                         String nomEntresArray[]=nomString.substring(0,nomString.length()-2).split(", ");
                         Double s = listSoldes.elementAt(listNoms.indexOf(nomEntresArray[nomEntresArray.length-1]));//on inscrit le solde du dernier entré
-                        solde.setText("" + s + "\u20AC");
+                        String s_string = s.toString();
+                        solde.setText("" + s_string.substring(0, s_string.indexOf(".") + 3) + "\u20AC");
                     } catch (IndexOutOfBoundsException e) {
                         if(nom.getText().toString().length()>0)
                         Toast.makeText(getApplicationContext(),"Erreur lecture solde",Toast.LENGTH_SHORT).show();
@@ -165,6 +168,7 @@ public class MainActivity extends Activity {
 
 
 
+
     @Override
     public void onCreateContextMenu(ContextMenu m, View p, ContextMenu.ContextMenuInfo menuInfo) {
         //Création du contectmenu suite à l'appui long sur la roue dentée en haut à droite
@@ -172,6 +176,15 @@ public class MainActivity extends Activity {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main, m);
     }
+
+
+    AdapterView.OnItemClickListener consoItemListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            InputMethodManager in = (InputMethodManager) getSystemService(MainActivity.this.getApplicationContext().INPUT_METHOD_SERVICE);
+            in.hideSoftInputFromWindow(view.getApplicationWindowToken(), 0);
+        }
+    };
 
 
     View.OnClickListener okListener = new View.OnClickListener() {
@@ -395,7 +408,7 @@ public class MainActivity extends Activity {
             while ((temp=buffreader.readLine()) != null)
                 s += temp;
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(),"Erreur ouverture fichier clients.txt",Toast.LENGTH_SHORT);
+            Toast.makeText(getApplicationContext(), "Erreur ouverture fichier clients.txt. Faire une MAJ clients/stocks.", Toast.LENGTH_SHORT);
             return;
         }//s contient tout le fichier
 
@@ -433,7 +446,7 @@ public class MainActivity extends Activity {
             while ((temp=buffreader.readLine()) != null)
                 s += temp;
         } catch (Exception e) {
-            Toast.makeText(getApplicationContext(), "Erreur ouverture fichier stocks.txt",Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Erreur ouverture fichier stocks.txt. Faire une MAJ clients/stocks.", Toast.LENGTH_SHORT).show();
             return;
         }//s contient tout le fichier
         json = new JSONArray(s);
