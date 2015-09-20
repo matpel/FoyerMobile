@@ -3,10 +3,9 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 22
     buildToolsVersion "22.0.1"
-
     defaultConfig {
         applicationId "com.matpel.foyermobile"
-        minSdkVersion 15
+        minSdkVersion 19
         targetSdkVersion 22
         versionCode 4
         versionName "1.3.1"
@@ -17,7 +16,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    compileOptions.encoding='ISO-8859-1'
+    compileOptions.encoding = 'ISO-8859-1'
+    productFlavors {
+    }
 }
 
 dependencies {

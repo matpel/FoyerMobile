@@ -19,9 +19,9 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.MultiAutoCompleteTextView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,34 +46,101 @@ import java.util.Vector;
 
 public class MainActivity extends Activity {
 
-    private  URL url_site;
-    private String token; //token fourni par l'API uPont suite à la requête /login/username/id/password/mdp
-    private int code=0;//code erreur retourné par l'API
-    private ListView hist=null; //historique des consos stockées sur le mobile
-    private LinearLayout layout=null;
-    private MultiAutoCompleteTextView nom = null; //le TextView permettant d'entrer les (les) nom(s) de(s) élève(s) pour enregistrer une conso
-    private AutoCompleteTextView conso = null;//champ permettant d'entrer UNE conso pour tout les élèves inscrits dans le champ nom
-    private TextView info = null;//textview indiquant la dernière entrée (géré par getlastlog())
-    private TextView solde=null;//champ indiquant le solde du dernier élève entré dans le champ nom
-    private TextView prix=null;//champ indiquant le prix de la bière entrée dans conso
-    private Button ok = null;
-    private ImageButton param = null;
-
-    private String id=null;
-    private String mdp=null;
-
     private static Vector<String> listNoms = new Vector<>(0);//Vector contenant les noms de TOUT les élèves
     private static Vector<String> listIdNom = new Vector<>(0);//Vector contenant les identifiants de tout les élèves, dans le même ordreque listNoms (par ex. peluchom pour Mathias Peluchon)
     private static Vector<String> listConso = new Vector<>(0);//Vector contenant les noms de toutes les consos
     private static Vector<String> listIdConsos = new Vector<>(0);//idem que pour les noms des élèves
-    private static Vector<Double> listSoldes=new Vector<>(0);//vector contnant les soldes de tout les élèves
-    private static Vector<Double> listPrix=new Vector<>(0);//vector contenant les prix des bières
-
-    private Vector<String> listHist=new Vector<>(0);//vector contenant l'historique des entrées stockées sur le mobile
-
+    private static Vector<Double> listSoldes = new Vector<>(0);//vector contnant les soldes de tout les élèves
+    private static Vector<Double> listPrix = new Vector<>(0);//vector contenant les prix des bières
     ArrayAdapter<String> adaptaterNoms = null;//adaptater permettant de peuplet l'autocomplete des noms
     ArrayAdapter<String> adaptaterConso = null;//idem pour les consos
-    ArrayAdapter<String> adaptaterHist=null;//idem pour le listView de l'historique
+    ArrayAdapter<String> adaptaterHist = null;//idem pour le listView de l'historique
+    //Lorsqu'on sélectionne une conso, le clavier se rétracte tout seul. Ce n'est pas la cas pour les noms car on en a encore besoin pour soit entrer un autre nom, soit entrer une conso
+    AdapterView.OnItemClickListener consoItemListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            InputMethodManager in = (InputMethodManager) getSystemService(MainActivity.INPUT_METHOD_SERVICE);
+            in.hideSoftInputFromWindow(view.getApplicationWindowToken(), 0);
+        }
+    };
+    private  URL url_site;
+    private String token; //token fourni par l'API uPont suite à la requête /login/username/id/password/mdp
+    private int code=0;//code erreur retourné par l'API
+    private ListView hist=null; //historique des consos stockées sur le mobile
+    private RelativeLayout layout = null;
+    private MultiAutoCompleteTextView nom = null; //le TextView permettant d'entrer les (les) nom(s) de(s) élève(s) pour enregistrer une conso
+    private AutoCompleteTextView conso = null;//champ permettant d'entrer UNE conso pour tout les élèves inscrits dans le champ nom
+    private TextView info = null;//textview indiquant la dernière entrée (géré par getlastlog())
+    //action du bouton ok, on écrit la/les commandes dans le fichier registre.txt en checkant que l'élève et la conso existent bien.
+    //le format d'écriture est *nom1:conso1*nom2:conso2
+    View.OnClickListener okListener = new View.OnClickListener() {
+        //on écrit la/les conso(s) dans le fichier registre.txt
+        @Override
+        public void onClick(View v) {
+            try {
+                OutputStreamWriter out = new OutputStreamWriter(openFileOutput("registre.txt", MODE_APPEND));
+
+                boolean bnom = false;
+                boolean bconso = false;
+                String string = nom.getText().toString();
+                String multiNoms[] = string.substring(0, string.length() - 2).split(", ");//Le MultiAutocomplete rajoute un ", " à la fin de chaque nom, il faut l'éliminer, puis on sépare les noms
+                for (String j : multiNoms) {
+                    for (String i : listNoms)
+                        bnom = bnom || (i.equals(j));
+                    for (String i : listConso)
+                        bconso = bconso || (i.equals(conso.getText().toString()));
+                    if (bconso && bnom) {
+                        out.write("*" + j + ":" + conso.getText().toString());
+                        Toast.makeText(getApplicationContext(), "OK !", Toast.LENGTH_SHORT).show();
+                    } else if (bconso)
+                        Toast.makeText(getApplicationContext(), "Conso inexistante: " + conso.getText().toString(), Toast.LENGTH_SHORT).show();
+                    else
+                        Toast.makeText(getApplicationContext(), "Mauvais nom/prénom: " + j, Toast.LENGTH_SHORT).show();
+                }
+                out.close();
+            } catch (java.io.IOException e) {
+                Toast.makeText(getApplicationContext(), "Impossible d'ecrire dans le fichier", Toast.LENGTH_SHORT).show();
+            }
+            info.setText(getlastlog("registre.txt"));//on met à jour la ligne qui informe de la dernière conso entrée
+
+        }
+    };
+    private TextView solde = null;//champ indiquant le solde du dernier élève entré dans le champ nom
+    //Lorsqu'on sélectionne un nom dans la liste déroulante du EditText nom, on affiche le solde du nom sélectionné
+    AutoCompleteTextView.OnDismissListener nomDismissListener = new AutoCompleteTextView.OnDismissListener() {
+        @Override
+        public void onDismiss() {
+            try {
+                String nomString = nom.getText().toString();
+                String nomEntresArray[] = nomString.substring(0, nomString.length() - 2).split(", ");
+                Double s = listSoldes.elementAt(listNoms.indexOf(nomEntresArray[nomEntresArray.length - 1]));//on inscrit le solde du dernier entré
+                String s_string = s.toString();
+                solde.setText("" + s_string.substring(0, s_string.indexOf(".") + 2) + "\u20AC");
+            } catch (IndexOutOfBoundsException e) {
+                if (nom.getText().toString().length() > 0)
+                    Toast.makeText(getApplicationContext(), "Erreur lecture solde", Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
+    private TextView prix = null;//champ indiquant le prix de la bière entrée dans conso
+    //idem que pour le Edittext nom, lorsqu'on a sélectionné une conso, on affiche son prix
+    AutoCompleteTextView.OnDismissListener consoDismissListener = new AutoCompleteTextView.OnDismissListener() {
+        @Override
+        public void onDismiss() {
+            try {
+                Double s = listPrix.elementAt(listConso.indexOf(conso.getText().toString()));
+                prix.setText("" + s + "\u20AC");
+            } catch (IndexOutOfBoundsException e) {
+                if (conso.getText().toString().length() > 0)
+                    Toast.makeText(getApplicationContext(), "Erreur lecture prix", Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
+    private Button ok = null;
+    private ImageButton param = null;
+    private String id = null;
+    private String mdp = null;
+    private Vector<String> listHist=new Vector<>(0);//vector contenant l'historique des entrées stockées sur le mobile
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,32 +148,32 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         try {
-            url_site=new URL("https://upont.enpc.fr");//Si l'url du site change, changer cette valeur
+            url_site = new URL("https://upont.enpc.fr");
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
 
-        hist=(ListView)findViewById(R.id.list);
-        layout=(LinearLayout) findViewById(R.id.mainlayout);
+        hist = (ListView) findViewById(R.id.list);
+        layout = (RelativeLayout) findViewById(R.id.mainlayout);
         param = (ImageButton) findViewById(R.id.param);
         nom = (MultiAutoCompleteTextView) findViewById(R.id.Nomprenom);
         conso = (AutoCompleteTextView) findViewById(R.id.conso);
         ok = (Button) findViewById(R.id.boutonOk);
         info = (TextView) findViewById(R.id.info);
-        solde=(TextView) findViewById(R.id.solde);
-        prix=(TextView)findViewById(R.id.prix);
+        solde = (TextView) findViewById(R.id.solde);
+        prix = (TextView) findViewById(R.id.prix);
         info.setText(getlastlog("registre.txt"));
         nom.setTokenizer(new MultiAutoCompleteTextView.CommaTokenizer());
         adaptaterNoms = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listNoms);
         adaptaterConso = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listConso);
 
         try {
-            updateData(false);//on lit remplit les Vector élèves/consos d'après la dernière sauvegarde effectuée sur le mobile dans clients.txt et stocks.txt (false=pas de synchronisation via l'API, ce n'est pas utile de le faire à chaque fois).
+            updateData(false);//on remplit les Vectors élèves/consos d'après la dernière sauvegarde effectuée sur le mobile dans clients.txt et stocks.txt (false: pas de synchronisation via l'API, ce n'est pas utile de le faire à chaque fois).
         } catch (JSONException e) {
             e.printStackTrace();
         }
 
-        //définition des adaptater peuplant les listes (historique, et listes déroulantes pour eleve/conso)
+        //définition des Adaptaters peuplant les listes (historique, et listes déroulantes pour eleves/consos)
         adaptaterHist= new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listHist);
         hist.setAdapter(adaptaterHist);
         nom.setAdapter(adaptaterNoms);
@@ -134,42 +201,14 @@ public class MainActivity extends Activity {
 
         if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.JELLY_BEAN_MR1) {
             //ce testest nécessaire pour définir le OnDismissListener plus bas
-            nom.setOnDismissListener(new AutoCompleteTextView.OnDismissListener() {
-                @Override
-                public void onDismiss() {
-                    try {
-                        String nomString=nom.getText().toString();
-                        String nomEntresArray[]=nomString.substring(0,nomString.length()-2).split(", ");
-                        Double s = listSoldes.elementAt(listNoms.indexOf(nomEntresArray[nomEntresArray.length-1]));//on inscrit le solde du dernier entré
-                        String s_string = s.toString();
-                        solde.setText("" + s_string.substring(0, s_string.indexOf(".") + 3) + "\u20AC");
-                    } catch (IndexOutOfBoundsException e) {
-                        if(nom.getText().toString().length()>0)
-                        Toast.makeText(getApplicationContext(),"Erreur lecture solde",Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
             //OnDismissListener pour AutoCompleteTextView n'existe que sur les API>=17
-            conso.setOnDismissListener(new AutoCompleteTextView.OnDismissListener() {
-                @Override
-                public void onDismiss() {
-                    try {
-                        Double s = listPrix.elementAt(listConso.indexOf(conso.getText().toString()));
-                        prix.setText("" + s + "\u20AC");
-                    } catch (IndexOutOfBoundsException e) {
-                        if(conso.getText().toString().length()>0)
-                        Toast.makeText(getApplicationContext(),"Erreur lecture prix",Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
+            nom.setOnDismissListener(nomDismissListener);
+            conso.setOnDismissListener(consoDismissListener);
         }
         registerForContextMenu(param);//on définit la view param comme sujette au contextMenu--> un clic long dessus ouvre un menu
     }
 
-
-
-
-    @Override
+    @Override //affichage du menu contextuel lors d'un appui prolongé sur le bouton paramètres
     public void onCreateContextMenu(ContextMenu m, View p, ContextMenu.ContextMenuInfo menuInfo) {
         //Création du contectmenu suite à l'appui long sur la roue dentée en haut à droite
         super.onCreateContextMenu(m, p, menuInfo);
@@ -177,57 +216,9 @@ public class MainActivity extends Activity {
         inflater.inflate(R.menu.menu_main, m);
     }
 
-
-    AdapterView.OnItemClickListener consoItemListener = new AdapterView.OnItemClickListener() {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            InputMethodManager in = (InputMethodManager) getSystemService(MainActivity.this.getApplicationContext().INPUT_METHOD_SERVICE);
-            in.hideSoftInputFromWindow(view.getApplicationWindowToken(), 0);
-        }
-    };
-
-
-    View.OnClickListener okListener = new View.OnClickListener() {
-        //on écrit la/les conso(s) dans le fichier registre.txt
-        @Override
-        public void onClick(View v) {
-            try {
-                OutputStreamWriter out = new OutputStreamWriter(openFileOutput("registre.txt", MODE_APPEND));
-
-                boolean bnom = false;
-                boolean bconso = false;
-                String string=nom.getText().toString();
-                String multiNoms[]=string.substring(0,string.length()-2).split(", ");//Le MultiAutocomplete rajoute un ", " à la fin de chaque nom, il faut l'éliminer, puis on sépare les noms
-                for(String j:multiNoms) {
-                    for (String i : listNoms)
-                        bnom = bnom || (i.equals(j));
-                    for (String i : listConso)
-                        bconso = bconso || (i.equals(conso.getText().toString()));
-                    if (bconso && bnom) {
-                        out.write("*" +j + ":" + conso.getText().toString());
-                        Toast.makeText(getApplicationContext(), "OK !", Toast.LENGTH_SHORT).show();
-                    } else if (bconso)
-                        Toast.makeText(getApplicationContext(), "Conso inexistante: "+conso.getText().toString(), Toast.LENGTH_SHORT).show();
-                    else
-                        Toast.makeText(getApplicationContext(), "Mauvais nom/prénom: "+j, Toast.LENGTH_SHORT).show();
-                }
-                out.close();
-            } catch (java.io.IOException e) {
-                Toast.makeText(getApplicationContext(), "Impossible d'ecrire dans le fichier", Toast.LENGTH_SHORT).show();
-            }
-            info.setText(getlastlog("registre.txt"));
-
-        }
-    };
-
-
-
-
-
-    @Override
+    @Override //actions effectuées selon le choix dans le menu contextuel
     public boolean onContextItemSelected(MenuItem item) {
 
-        //actions à effectuer selon l'action choisie dans le contextMenu
         switch (item.getItemId()) {
             case R.id.suplast: {
                 //si on veut supprimer la dernière entrée
@@ -266,22 +257,23 @@ public class MainActivity extends Activity {
                 info.setText(getlastlog("registre.txt"));
                 return true;
             }
+
             case R.id.supall: {
                 //si on veut tout supprimer
                 deleteFile("registre.txt");
                 Toast.makeText(getApplicationContext(), "Toutes les entrées ont été supprimées", Toast.LENGTH_SHORT).show();
-                info.setText("Aucune entrée à supprimer");
+                info.setText("Aucune entrée");
                 return true;
             }
 
             case R.id.identifiants:{
-                //si on veut entrer les identifiants
+                //si on veut se connecter à uPont
                 getCred();
                 return true;
             }
 
             case R.id.sync: {
-                //si on veut synchroniser sur le site
+                //si on veut synchroniser registre.txt sur le site
                 boolean b;
                 if(token==null){Toast.makeText(getApplicationContext(),"Connecte-toi pour synchroniser",Toast.LENGTH_SHORT).show();return true;}
                     try {
@@ -323,12 +315,15 @@ public class MainActivity extends Activity {
                     }
                 return true;
             }
-            case R.id.historique:{
+
+            case R.id.historique: {//si on veut accéder à l'historique
                 editHist();
                 return true;
             }
+
             case R.id.getdata: {
-                if(id!=null) {
+                //si on veut récupérer les données de la BDD (noms+soldes+bières+prix) via l'API uPont
+                if (id != null) {
                     try {
                         updateData(true);//on synchronise via l'API (true) la liste des élèves et celle des consos
                     } catch (JSONException e) {
@@ -337,8 +332,6 @@ public class MainActivity extends Activity {
                 }
                 return true;
             }
-
-
         }
         return super.onOptionsItemSelected(item);
     }
@@ -367,7 +360,7 @@ public class MainActivity extends Activity {
             s = s.substring(i + 1, j) + " - " + s.substring(j + 1, s.length());
         }
         return s;
-    }
+    }//pour obtenir la dernière entrée dans registre.txt
 
     private void updateData(boolean internet) throws JSONException {
         //met à jour les Vector concernant les consos et les noms. Si internet==true on fait appel à l'api, sinon on récupère juste les données sauvegarfées dans clients.txt et stocks.txt
@@ -457,7 +450,7 @@ public class MainActivity extends Activity {
         }
         adaptaterConso.notifyDataSetChanged();
         Toast.makeText(getApplicationContext(),"Stock à jour",Toast.LENGTH_SHORT).show();
-    }
+    }//pour obtenir les données de la BDD uPont
 
     private void getCred(){
         LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
@@ -534,7 +527,7 @@ public class MainActivity extends Activity {
                 })
                 .setNegativeButton("Annuler", null).create();
         dialog.show();
-    }
+    }//pour se connecter à uPont
 
     private void editHist(){
         listHist.removeAllElements();
@@ -605,7 +598,7 @@ public class MainActivity extends Activity {
             }
         });
 
-    }
+    }//pour supprimer des entrées dans l'historique
 
     @Override
     public void onBackPressed() {

@@ -1,18 +1,40 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
-    <item android:id="@+id/suplast" android:title="Supprimer derniere entrée"
-        android:orderInCategory="100" app:showAsAction="never" android:icon="@raw/deletered" />
-    <item android:id="@+id/historique" android:title="Historique"
+    <item
+        android:id="@+id/suplast"
+        android:icon="@raw/deletered"
+        android:orderInCategory="100"
+        android:title="Supprimer dernière entrée"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/historique"
+        android:orderInCategory="100"
+        android:title="Historique"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/identifiants"
+        android:orderInCategory="100"
+        android:title="Connexion"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/sync"
+        android:orderInCategory="100"
+        android:title="Synchroniser"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/getdata"
+        android:orderInCategory="100"
+        android:title="MAJ clients/stocks"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/blank"
+        android:orderInCategory="120"
+        android:title="" />
         android:orderInCategory="100" app:showAsAction="never" />
-    <item android:id="@+id/identifiants" android:title="Connexion"
-        android:orderInCategory="100" app:showAsAction="never" />
-    <item android:id="@+id/sync" android:title="Synchroniser"
-        android:orderInCategory="100" app:showAsAction="never"/>
-    <item android:id="@+id/getdata" android:title="MAJ clients/stocks"
-        android:orderInCategory="100" app:showAsAction="never"/>
-    <item android:id="@+id/blank" android:title="" android:orderInCategory="120"/>
-        android:orderInCategory="100" app:showAsAction="never" />
-    <item android:id="@+id/supall" android:title="SUPPRIMER TOUT"
-        android:orderInCategory="130" app:showAsAction="never"/>
+    <item
+        android:id="@+id/supall"
+        android:orderInCategory="130"
+        android:title="SUPPRIMER TOUT"
+        app:showAsAction="never" />
 </menu>
