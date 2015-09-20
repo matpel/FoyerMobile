@@ -2,11 +2,14 @@ package com.matpel.foyermobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
@@ -47,6 +50,7 @@ import java.util.Vector;
 public class MainActivity extends Activity {
 
     private static Vector<String> listNoms = new Vector<>(0);//Vector contenant les noms de TOUT les élèves
+    private static Vector<String> listMails = new Vector<>(0);//Vector contenant les noms de TOUT les élèves
     private static Vector<String> listIdNom = new Vector<>(0);//Vector contenant les identifiants de tout les élèves, dans le même ordreque listNoms (par ex. peluchom pour Mathias Peluchon)
     private static Vector<String> listConso = new Vector<>(0);//Vector contenant les noms de toutes les consos
     private static Vector<String> listIdConsos = new Vector<>(0);//idem que pour les noms des élèves
@@ -140,6 +144,7 @@ public class MainActivity extends Activity {
     private ImageButton param = null;
     private String id = null;
     private String mdp = null;
+    private float lim_solde = 0;
     private Vector<String> listHist=new Vector<>(0);//vector contenant l'historique des entrées stockées sur le mobile
 
     @Override
@@ -332,8 +337,50 @@ public class MainActivity extends Activity {
                 }
                 return true;
             }
+
+            case R.id.mail: {
+                //on envoie un mail à tout les déficitaires en dessous d'un seuil qu'on demande systématiquement
+                sendMails();
+
+            }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void sendMails() {
+        float lim = 0;
+        LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
+        final View yourCustomView = inflater.inflate(R.layout.activity_limsolde, null);
+
+        final TextView niveau = (EditText) yourCustomView.findViewById(R.id.limsolde);
+        AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Envoyer un mail à ceux dont le solde est inférieur à:")
+                .setView(yourCustomView)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        lim_solde = Float.valueOf(niveau.getText().toString());
+                        Vector<String> listMailDeficit = new Vector<>();
+                        int j = 0;
+                        for (double i : listSoldes) {//on parcourt les soldes (i) et si i est en dessous de lim_solde, on va chercher le mail de l'utilisateur correspondant (au rang j dans le Vector).
+                            if (i <= lim_solde)
+                                listMailDeficit.add(listMails.get(j));
+                            j++;
+                        }
+                        Log.d("test mail", listMailDeficit.toString());
+                        Intent emailLauncher = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                        emailLauncher.setType("message/rfc822");
+                        emailLauncher.putExtra(Intent.EXTRA_EMAIL, listMailDeficit.toArray(new String[listMailDeficit.size()]));
+                        emailLauncher.putExtra(Intent.EXTRA_SUBJECT, "[Foyer] Il est temps de recharger!");
+                        emailLauncher.putExtra(Intent.EXTRA_TEXT, "Salut,\n\nTu fais partie des quelques personnes qui doivent au moins " + (-lim_solde) + "\u20ac (probablement plus) au foyer.\n\nIl faut que tu rembourses cette dette rapidement !\n\nTu peux venir nous voir avec du liquide ou un chèque, ou bien par Lydia au lien suivant:\nhttps://lydia-app.com/collect/foyer-enpc-rechargement.\n\nTu peux aussi contacter Louise Chatelain, notre trésorière, pour obtenir un RIB. \n\nTu peux recharger ton compte quand tu veux par Lydia (ou CB) depuis uPont, il te suffit de cliquer sur l'icône de billet à coté de ton solde. \n\nMerci bien,\nLe Foyer 017 :)");
+                        try {
+                            startActivity(emailLauncher);
+                        } catch (ActivityNotFoundException e) {
+                            Toast.makeText(getApplicationContext(), "Aucune application mail trouvée", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }).setNegativeButton("Annuler", null).create();
+
+        dialog.show();
     }
 
     private String getlastlog(String name) {
@@ -369,6 +416,7 @@ public class MainActivity extends Activity {
         listIdConsos.removeAllElements();
         listPrix.removeAllElements();
         listNoms.removeAllElements();
+        listMails.removeAllElements();
         listSoldes.removeAllElements();
 
         StringBuilder response = new StringBuilder();
@@ -408,13 +456,14 @@ public class MainActivity extends Activity {
         JSONArray json=new JSONArray(s);
         for(int i=0;i<json.length();i++){
             listNoms.add(json.getJSONObject(i).optString("first_name") + " " + json.getJSONObject(i).optString("last_name"));
+            listMails.add(json.getJSONObject(i).optString("email"));
             listIdNom.add(json.getJSONObject(i).optString("username"));
             if (json.getJSONObject(i).has("balance"))
                 listSoldes.add(json.getJSONObject(i).optDouble("balance"));
             else listSoldes.add(0.);
         }
         adaptaterNoms.notifyDataSetChanged();
-        Toast.makeText(getApplicationContext(),"Liste des eleves à jour",Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "Liste des élèves à jour", Toast.LENGTH_SHORT).show();
 
         /////On met à jour les stocks après les clients
         if (internet && networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
@@ -422,7 +471,7 @@ public class MainActivity extends Activity {
             t.start();
             try {
                 t.join();
-                Toast.makeText(getApplicationContext(), "Stock téléchargés depuis le site", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "Stock téléchargé depuis le site", Toast.LENGTH_SHORT).show();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

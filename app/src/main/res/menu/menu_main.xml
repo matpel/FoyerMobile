@@ -28,10 +28,14 @@
         android:title="MAJ clients/stocks"
         app:showAsAction="never" />
     <item
+        android:id="@+id/mail"
+        android:orderInCategory="100"
+        android:title="Contacter les déficitaires"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/blank"
         android:orderInCategory="120"
         android:title="" />
-        android:orderInCategory="100" app:showAsAction="never" />
     <item
         android:id="@+id/supall"
         android:orderInCategory="130"
