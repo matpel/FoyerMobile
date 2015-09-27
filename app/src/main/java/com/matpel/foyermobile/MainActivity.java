@@ -13,7 +13,6 @@ import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
@@ -210,7 +209,7 @@ public class MainActivity extends Activity {
             nom.setOnDismissListener(nomDismissListener);
             conso.setOnDismissListener(consoDismissListener);
         }
-        registerForContextMenu(param);//on définit la view param comme sujette au contextMenu--> un clic long dessus ouvre un menu
+        param.setOnClickListener(menuListener);
     }
 
     @Override //affichage du menu contextuel lors d'un appui prolongé sur le bouton paramètres
@@ -221,11 +220,26 @@ public class MainActivity extends Activity {
         inflater.inflate(R.menu.menu_main, m);
     }
 
-    @Override //actions effectuées selon le choix dans le menu contextuel
-    public boolean onContextItemSelected(MenuItem item) {
+    View.OnClickListener menuListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            final CharSequence[] items = {"Supprimer dernière entrée", "Historique", "Connexion", "Synchroniser", "MAJ clients/stocks", "Contacter les déficitaires", "!! Supprimer tout !!"};
 
-        switch (item.getItemId()) {
-            case R.id.suplast: {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setTitle("Menu");
+            builder.setItems(items, new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int item) {
+                    menuHandleItem(item);
+                }
+            });
+            AlertDialog alert = builder.create();
+            alert.show();
+        }
+    };
+
+    private void menuHandleItem(int item) {
+        switch (item) {
+            case 0: {
                 //si on veut supprimer la dernière entrée
                 int i;
                 String s = "";
@@ -260,27 +274,27 @@ public class MainActivity extends Activity {
                     Toast.makeText(getApplicationContext(), "Rien à effacer", Toast.LENGTH_SHORT).show();
                 }
                 info.setText(getlastlog("registre.txt"));
-                return true;
+                return;
             }
 
-            case R.id.supall: {
-                //si on veut tout supprimer
-                deleteFile("registre.txt");
-                Toast.makeText(getApplicationContext(), "Toutes les entrées ont été supprimées", Toast.LENGTH_SHORT).show();
-                info.setText("Aucune entrée");
-                return true;
+            case 1: {//si on veut accéder à l'historique
+                editHist();
+                return;
             }
 
-            case R.id.identifiants:{
+            case 2: {
                 //si on veut se connecter à uPont
                 getCred();
-                return true;
+                return;
             }
 
-            case R.id.sync: {
+            case 3: {
                 //si on veut synchroniser registre.txt sur le site
                 boolean b;
-                if(token==null){Toast.makeText(getApplicationContext(),"Connecte-toi pour synchroniser",Toast.LENGTH_SHORT).show();return true;}
+                if (token == null) {
+                    Toast.makeText(getApplicationContext(), "Connecte-toi pour synchroniser", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                     try {
                         InputStreamReader file = new InputStreamReader(openFileInput("registre.txt"));
                         BufferedReader buffreader = new BufferedReader(file);
@@ -307,7 +321,7 @@ public class MainActivity extends Activity {
                                     Toast.makeText(getApplicationContext(), "Erreur 401, problème d'identification lors de la synchronisation de"+listNoms.elementAt(k1)+ " "+listConso.elementAt(k2)+". Les éléments précédents dans l'historique ont été synchronisés ", Toast.LENGTH_SHORT).show();
                                 else
                                     Toast.makeText(getApplicationContext(), "Erreur "+sync.code+" lors de la synchronisation de "+listNoms.elementAt(k1)+ " "+listConso.elementAt(k2)+". Les éléments précédents dans l'historique ont été synchronisés", Toast.LENGTH_SHORT).show();
-                                return true;
+                                return;
                             }
                             i = s.indexOf('*', i + 1);
                         }
@@ -318,15 +332,10 @@ public class MainActivity extends Activity {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                return true;
+                return;
             }
 
-            case R.id.historique: {//si on veut accéder à l'historique
-                editHist();
-                return true;
-            }
-
-            case R.id.getdata: {
+            case 4: {
                 //si on veut récupérer les données de la BDD (noms+soldes+bières+prix) via l'API uPont
                 if (id != null) {
                     try {
@@ -335,20 +344,38 @@ public class MainActivity extends Activity {
                         e.printStackTrace();
                     }
                 }
-                return true;
+                return;
             }
 
-            case R.id.mail: {
+            case 5: {
                 //on envoie un mail à tout les déficitaires en dessous d'un seuil qu'on demande systématiquement
                 sendMails();
+                return;
 
             }
+            case 6: {
+                //si on veut tout supprimer
+                (new AlertDialog.Builder(this).setTitle("Supprimer").setMessage("Veux-tu vraiment tout supprimer? (Irreversible)")
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                deleteFile("registre.txt");
+                                Toast.makeText(getApplicationContext(), "Toutes les entrées ont été supprimées", Toast.LENGTH_SHORT).show();
+                                info.setText("Aucune entrée");
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                Toast.makeText(getApplicationContext(), "Annulé!", Toast.LENGTH_SHORT).show();
+                            }
+                        })).show();
+            }
         }
-        return super.onOptionsItemSelected(item);
     }
 
     private void sendMails() {
-        float lim = 0;
+        final float lim = 0;
         LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
         final View yourCustomView = inflater.inflate(R.layout.activity_limsolde, null);
 
@@ -370,8 +397,8 @@ public class MainActivity extends Activity {
                         Intent emailLauncher = new Intent(Intent.ACTION_SEND_MULTIPLE);
                         emailLauncher.setType("message/rfc822");
                         emailLauncher.putExtra(Intent.EXTRA_EMAIL, listMailDeficit.toArray(new String[listMailDeficit.size()]));
-                        emailLauncher.putExtra(Intent.EXTRA_SUBJECT, "[Foyer] Il est temps de recharger!");
-                        emailLauncher.putExtra(Intent.EXTRA_TEXT, "Salut,\n\nTu fais partie des quelques personnes qui doivent au moins " + (-lim_solde) + "\u20ac (probablement plus) au foyer.\n\nIl faut que tu rembourses cette dette rapidement !\n\nTu peux venir nous voir avec du liquide ou un chèque, ou bien par Lydia au lien suivant:\nhttps://lydia-app.com/collect/foyer-enpc-rechargement.\n\nTu peux aussi contacter Louise Chatelain, notre trésorière, pour obtenir un RIB. \n\nTu peux recharger ton compte quand tu veux par Lydia (ou CB) depuis uPont, il te suffit de cliquer sur l'icône de billet à coté de ton solde. \n\nMerci bien,\nLe Foyer 017 :)");
+                        emailLauncher.putExtra(Intent.EXTRA_SUBJECT, "[Foyer] Fin de la rigolade, il est temps de recharger!");
+                        emailLauncher.putExtra(Intent.EXTRA_TEXT, "Salut,\n\nSi tu reçois ce mail, c'est parcequ'il est vraiment temps de recharger ton compte foyer. Tu fais partie des quelques élèves en dessous de " + lim_solde + " \u20ac...\n\nTu peux venir nous voir avec du liquide, un chèque, ou bien par Lydia/CB au lien suivant:\nhttps://lydia-app.com/collect/foyer-enpc-rechargement.\n\nTu peux aussi contacter Louise Chatelain pour obtenir un RIB.\n\nCordialement,\nLe Foyer 017");
                         try {
                             startActivity(emailLauncher);
                         } catch (ActivityNotFoundException e) {
@@ -642,8 +669,8 @@ public class MainActivity extends Activity {
                     }
                 }
                 info.setText(getlastlog("registre.txt"));
-                hist.setVisibility(View.GONE);
-                layout.setVisibility(View.VISIBLE);
+                listHist.remove(position);
+                adaptaterHist.notifyDataSetChanged();
             }
         });
 

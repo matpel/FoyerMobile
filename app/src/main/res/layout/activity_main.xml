@@ -104,7 +104,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:text="2.2" />
+            android:text="2.3" />
     </RelativeLayout>
     <ListView
         android:id="@+id/list"
