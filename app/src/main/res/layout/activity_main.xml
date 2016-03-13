@@ -45,6 +45,17 @@
                 android:hint="Nom"
             android:imeOptions="actionNext"
             android:inputType="textCapWords" />
+
+        <ImageButton
+            android:id="@+id/bouton_recharge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toLeftOf="@id/Nomprenom"
+            android:layout_alignTop="@id/Nomprenom"
+            android:layout_alignBottom="@id/Nomprenom"
+            android:background="@android:color/transparent"
+            android:layout_marginRight="20dp"
+            android:src="@raw/dollar" />
             <TextView
                 android:id="@+id/solde"
                 android:layout_width="70dp"
@@ -104,7 +115,16 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
-            android:text="2.3" />
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            android:text="2.4.2" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:text="MP '017" />
     </RelativeLayout>
     <ListView
         android:id="@+id/list"

@@ -1,23 +1,19 @@
 package com.matpel.foyermobile;
 
-import android.util.Base64;
-import android.util.Log;
-
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.Authenticator;
-import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.PasswordAuthentication;
 import java.net.URL;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Created by Mathias on 16/05/2015.
  */
 public class Sync extends Thread {
     private String s=null;
-    public int code=0;
+    public int code = -1;
     private  String token=null;
     public boolean erreur=true;
     URL url_site;
@@ -32,18 +28,28 @@ public class Sync extends Thread {
     }
     @Override
     public void run() {
-        HttpURLConnection connect=null;
+        HttpsURLConnection connect = null;
         try {
-            URL url=new URL(url_site.toString()+"/api/beers/"+beer+"/users/"+eleve);
-            connect=(HttpURLConnection)url.openConnection();
+            String jsonParam = "user=" + eleve + "&beer=" + beer;
+            URL url = new URL(url_site.toString() + "/api/transactions");
+            connect = (HttpsURLConnection) url.openConnection();
+            connect.setDoInput(true);
             connect.setDoOutput(true);
+            connect.setRequestProperty("Authorization", "Bearer " + token);
             connect.setRequestMethod("POST");
-            connect.setRequestProperty("Authorization","Bearer "+token);
+            OutputStream os = connect.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+            writer.write(jsonParam);
+            writer.flush();
+            writer.close();
+            os.close();
+            connect.connect();
             code=connect.getResponseCode();
-            Log.d("code sync",""+url.toString());
+            s = connect.getResponseMessage();
         } catch (IOException e) {
             e.printStackTrace();
-        }finally{
+        } finally {
+            //Log.d("code sync",s);
             if(connect!=null)
                 connect.disconnect();
         }

@@ -33,21 +33,26 @@ import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Vector;
 
+import javax.net.ssl.HttpsURLConnection;
+
 
 public class MainActivity extends Activity {
 
+    //DECLARATION DES OBJETS
     private static Vector<String> listNoms = new Vector<>(0);//Vector contenant les noms de TOUT les élèves
     private static Vector<String> listMails = new Vector<>(0);//Vector contenant les noms de TOUT les élèves
     private static Vector<String> listIdNom = new Vector<>(0);//Vector contenant les identifiants de tout les élèves, dans le même ordreque listNoms (par ex. peluchom pour Mathias Peluchon)
@@ -58,14 +63,6 @@ public class MainActivity extends Activity {
     ArrayAdapter<String> adaptaterNoms = null;//adaptater permettant de peuplet l'autocomplete des noms
     ArrayAdapter<String> adaptaterConso = null;//idem pour les consos
     ArrayAdapter<String> adaptaterHist = null;//idem pour le listView de l'historique
-    //Lorsqu'on sélectionne une conso, le clavier se rétracte tout seul. Ce n'est pas la cas pour les noms car on en a encore besoin pour soit entrer un autre nom, soit entrer une conso
-    AdapterView.OnItemClickListener consoItemListener = new AdapterView.OnItemClickListener() {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            InputMethodManager in = (InputMethodManager) getSystemService(MainActivity.INPUT_METHOD_SERVICE);
-            in.hideSoftInputFromWindow(view.getApplicationWindowToken(), 0);
-        }
-    };
     private  URL url_site;
     private String token; //token fourni par l'API uPont suite à la requête /login/username/id/password/mdp
     private int code=0;//code erreur retourné par l'API
@@ -74,71 +71,9 @@ public class MainActivity extends Activity {
     private MultiAutoCompleteTextView nom = null; //le TextView permettant d'entrer les (les) nom(s) de(s) élève(s) pour enregistrer une conso
     private AutoCompleteTextView conso = null;//champ permettant d'entrer UNE conso pour tout les élèves inscrits dans le champ nom
     private TextView info = null;//textview indiquant la dernière entrée (géré par getlastlog())
-    //action du bouton ok, on écrit la/les commandes dans le fichier registre.txt en checkant que l'élève et la conso existent bien.
-    //le format d'écriture est *nom1:conso1*nom2:conso2
-    View.OnClickListener okListener = new View.OnClickListener() {
-        //on écrit la/les conso(s) dans le fichier registre.txt
-        @Override
-        public void onClick(View v) {
-            try {
-                OutputStreamWriter out = new OutputStreamWriter(openFileOutput("registre.txt", MODE_APPEND));
-
-                boolean bnom = false;
-                boolean bconso = false;
-                String string = nom.getText().toString();
-                String multiNoms[] = string.substring(0, string.length() - 2).split(", ");//Le MultiAutocomplete rajoute un ", " à la fin de chaque nom, il faut l'éliminer, puis on sépare les noms
-                for (String j : multiNoms) {
-                    for (String i : listNoms)
-                        bnom = bnom || (i.equals(j));
-                    for (String i : listConso)
-                        bconso = bconso || (i.equals(conso.getText().toString()));
-                    if (bconso && bnom) {
-                        out.write("*" + j + ":" + conso.getText().toString());
-                        Toast.makeText(getApplicationContext(), "OK !", Toast.LENGTH_SHORT).show();
-                    } else if (bconso)
-                        Toast.makeText(getApplicationContext(), "Conso inexistante: " + conso.getText().toString(), Toast.LENGTH_SHORT).show();
-                    else
-                        Toast.makeText(getApplicationContext(), "Mauvais nom/prénom: " + j, Toast.LENGTH_SHORT).show();
-                }
-                out.close();
-            } catch (java.io.IOException e) {
-                Toast.makeText(getApplicationContext(), "Impossible d'ecrire dans le fichier", Toast.LENGTH_SHORT).show();
-            }
-            info.setText(getlastlog("registre.txt"));//on met à jour la ligne qui informe de la dernière conso entrée
-
-        }
-    };
+    private ImageButton recharge = null;
     private TextView solde = null;//champ indiquant le solde du dernier élève entré dans le champ nom
-    //Lorsqu'on sélectionne un nom dans la liste déroulante du EditText nom, on affiche le solde du nom sélectionné
-    AutoCompleteTextView.OnDismissListener nomDismissListener = new AutoCompleteTextView.OnDismissListener() {
-        @Override
-        public void onDismiss() {
-            try {
-                String nomString = nom.getText().toString();
-                String nomEntresArray[] = nomString.substring(0, nomString.length() - 2).split(", ");
-                Double s = listSoldes.elementAt(listNoms.indexOf(nomEntresArray[nomEntresArray.length - 1]));//on inscrit le solde du dernier entré
-                String s_string = s.toString();
-                solde.setText("" + s_string.substring(0, s_string.indexOf(".") + 2) + "\u20AC");
-            } catch (IndexOutOfBoundsException e) {
-                if (nom.getText().toString().length() > 0)
-                    Toast.makeText(getApplicationContext(), "Erreur lecture solde", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
     private TextView prix = null;//champ indiquant le prix de la bière entrée dans conso
-    //idem que pour le Edittext nom, lorsqu'on a sélectionné une conso, on affiche son prix
-    AutoCompleteTextView.OnDismissListener consoDismissListener = new AutoCompleteTextView.OnDismissListener() {
-        @Override
-        public void onDismiss() {
-            try {
-                Double s = listPrix.elementAt(listConso.indexOf(conso.getText().toString()));
-                prix.setText("" + s + "\u20AC");
-            } catch (IndexOutOfBoundsException e) {
-                if (conso.getText().toString().length() > 0)
-                    Toast.makeText(getApplicationContext(), "Erreur lecture prix", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
     private Button ok = null;
     private ImageButton param = null;
     private String id = null;
@@ -146,6 +81,8 @@ public class MainActivity extends Activity {
     private float lim_solde = 0;
     private Vector<String> listHist=new Vector<>(0);//vector contenant l'historique des entrées stockées sur le mobile
 
+
+    //INITIALISATION DE L'ACTIVITÉ
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -170,6 +107,8 @@ public class MainActivity extends Activity {
         nom.setTokenizer(new MultiAutoCompleteTextView.CommaTokenizer());
         adaptaterNoms = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listNoms);
         adaptaterConso = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, listConso);
+        recharge = (ImageButton) findViewById(R.id.bouton_recharge);
+        recharge.setVisibility(View.GONE);
 
         try {
             updateData(false);//on remplit les Vectors élèves/consos d'après la dernière sauvegarde effectuée sur le mobile dans clients.txt et stocks.txt (false: pas de synchronisation via l'API, ce n'est pas utile de le faire à chaque fois).
@@ -210,8 +149,8 @@ public class MainActivity extends Activity {
             conso.setOnDismissListener(consoDismissListener);
         }
         param.setOnClickListener(menuListener);
+        recharge.setOnClickListener(rechargeListener);
     }
-
     @Override //affichage du menu contextuel lors d'un appui prolongé sur le bouton paramètres
     public void onCreateContextMenu(ContextMenu m, View p, ContextMenu.ContextMenuInfo menuInfo) {
         //Création du contectmenu suite à l'appui long sur la roue dentée en haut à droite
@@ -220,22 +159,153 @@ public class MainActivity extends Activity {
         inflater.inflate(R.menu.menu_main, m);
     }
 
-    View.OnClickListener menuListener = new View.OnClickListener() {
-        @Override
-        public void onClick(View v) {
-            final CharSequence[] items = {"Supprimer dernière entrée", "Historique", "Connexion", "Synchroniser", "MAJ clients/stocks", "Contacter les déficitaires", "!! Supprimer tout !!"};
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-            builder.setTitle("Menu");
-            builder.setItems(items, new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialog, int item) {
-                    menuHandleItem(item);
-                }
-            });
-            AlertDialog alert = builder.create();
-            alert.show();
+    @Override
+    public void onBackPressed() {
+        if (hist.getVisibility() == View.GONE)
+            super.onBackPressed();
+        else {
+            hist.setVisibility(View.GONE);
+            layout.setVisibility(View.VISIBLE);
         }
-    };
+    }
+
+
+    //FONCTIONS UTILES POUR LISTENERS
+    private void searchPrices() {
+        try {
+            Double s = listPrix.elementAt(listConso.indexOf(conso.getText().toString()));
+            prix.setText("" + s + "\u20AC");
+        } catch (IndexOutOfBoundsException e) {
+            if (conso.getText().toString().length() > 0)
+                Toast.makeText(getApplicationContext(), "Erreur lecture prix", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void recharger() {
+        LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
+        final View yourCustomView = inflater.inflate(R.layout.activity_recharge, null);
+
+        final TextView montantView = (EditText) yourCustomView.findViewById(R.id.montant);
+        final TextView pinView = (EditText) yourCustomView.findViewById(R.id.pin);
+        AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Rechargement de " + nom.getText().toString().split(",")[0])
+                .setView(yourCustomView)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        final float montant = Float.valueOf(montantView.getText().toString());
+                        int pin = Integer.valueOf(pinView.getText().toString());
+                        if (pin == 120393) {
+                            Thread thread = new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    HttpsURLConnection connect = null;
+                                    try {
+                                        String eleve = nom.getText().toString();
+                                        int k1 = listNoms.indexOf(eleve.substring(0, eleve.length() - 2));
+                                        eleve = listIdNom.elementAt(k1);
+                                        String jsonParam = "user=" + eleve + "&credit=" + montant;
+                                        URL url = new URL(url_site.toString() + "/api/transactions");
+                                        connect = (HttpsURLConnection) url.openConnection();
+                                        connect.setDoInput(true);
+                                        connect.setDoOutput(true);
+                                        connect.setRequestProperty("Authorization", "Bearer " + token);
+                                        connect.setRequestMethod("POST");
+                                        OutputStream os = connect.getOutputStream();
+                                        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+                                        writer.write(jsonParam);
+                                        writer.flush();
+                                        writer.close();
+                                        os.close();
+                                        connect.connect();
+                                        code = connect.getResponseCode();
+                                        if (code != 201) {
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    Toast.makeText(MainActivity.this, "Erreur lors du rechargement, code: " + code, Toast.LENGTH_SHORT).show();
+                                                }
+                                            });
+                                        } else {
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    Toast.makeText(MainActivity.this, "Rechargement effectué", Toast.LENGTH_SHORT).show();
+                                                }
+                                            });
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } finally {
+                                        if (connect != null)
+                                            connect.disconnect();
+                                    }
+                                }
+                            });
+                            thread.start();
+
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Mauvais PIN", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }).setNegativeButton("Annuler", null).create();
+
+        dialog.show();
+    }
+
+    private void writeRegister() {
+        try {
+            OutputStreamWriter out = new OutputStreamWriter(openFileOutput("registre.txt", MODE_APPEND));
+
+            boolean bnom = false;
+            boolean bconso = false;
+            String string = nom.getText().toString();
+            String multiNoms[] = string.substring(0, string.length() - 2).split(", ");//Le MultiAutocomplete rajoute un ", " à la fin de chaque nom, il faut l'éliminer, puis on sépare les noms
+            for (String j : multiNoms) {
+                for (String i : listNoms)
+                    bnom = bnom || (i.equals(j));
+                for (String i : listConso)
+                    bconso = bconso || (i.equals(conso.getText().toString()));
+                if (bconso && bnom) {
+                    out.write("*" + j + ":" + conso.getText().toString());
+                    Toast.makeText(getApplicationContext(), "OK !", Toast.LENGTH_SHORT).show();
+                } else if (bconso)
+                    Toast.makeText(getApplicationContext(), "Conso inexistante: " + conso.getText().toString(), Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(getApplicationContext(), "Mauvais nom/prénom: " + j, Toast.LENGTH_SHORT).show();
+            }
+            out.close();
+        } catch (java.io.IOException e) {
+            Toast.makeText(getApplicationContext(), "Impossible d'ecrire dans le fichier", Toast.LENGTH_SHORT).show();
+        }
+        info.setText(getlastlog("registre.txt"));//on met à jour la ligne qui informe de la dernière conso entrée
+    }
+
+    private void showMenu() {
+        final CharSequence[] items = {"Supprimer dernière entrée", "Historique", "Connexion", "Synchroniser", "MAJ clients/stocks", "Contacter les déficitaires", "!! Supprimer tout !!"};
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Menu");
+        builder.setItems(items, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int item) {
+                menuHandleItem(item);
+            }
+        });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    private void searchName() {
+        try {
+            String nomString = nom.getText().toString();
+            String nomEntresArray[] = nomString.substring(0, nomString.length() - 2).split(", ");
+            Double s = listSoldes.elementAt(listNoms.indexOf(nomEntresArray[nomEntresArray.length - 1]));//on inscrit le solde du dernier entré
+            String s_string = s.toString();
+            solde.setText("" + s_string.substring(0, s_string.indexOf(".") + 2) + "\u20AC");
+        } catch (IndexOutOfBoundsException e) {
+            if (nom.getText().toString().length() > 0)
+                Toast.makeText(getApplicationContext(), "Erreur lecture solde", Toast.LENGTH_SHORT).show();
+        }
+    }
 
     private void menuHandleItem(int item) {
         switch (item) {
@@ -295,43 +365,43 @@ public class MainActivity extends Activity {
                     Toast.makeText(getApplicationContext(), "Connecte-toi pour synchroniser", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                try {
+                    InputStreamReader file = new InputStreamReader(openFileInput("registre.txt"));
+                    BufferedReader buffreader = new BufferedReader(file);
+                    String line, s = "";
                     try {
-                        InputStreamReader file = new InputStreamReader(openFileInput("registre.txt"));
-                        BufferedReader buffreader = new BufferedReader(file);
-                        String line, s = "";
-                        try {
-                            while ((line = buffreader.readLine()) != null)
-                                s += line;
-                        } catch (Exception e) {
-                            Toast.makeText(getApplicationContext(), "Impossible de lire le fichier registre.txt", Toast.LENGTH_SHORT).show();
-                        }//s contient tout le fichier
+                        while ((line = buffreader.readLine()) != null)
+                            s += line;
+                    } catch (Exception e) {
+                        Toast.makeText(getApplicationContext(), "Impossible de lire le fichier registre.txt", Toast.LENGTH_SHORT).show();
+                    }//s contient tout le fichier
 
-                        int i = 0;
-                        s = s + '*';//le format d'écriture des entrées dans registre.txt est *nom_eleve1:conso1*nom_eleve2:conso2....
-                        Toast.makeText(getApplicationContext(), "Synchronisation...", Toast.LENGTH_SHORT).show();
-                        while (s.indexOf('*', i) < s.length() - 1) {
-                            int k1, k2;
-                            k1 = listNoms.indexOf(s.substring(s.indexOf('*', i) + 1, s.indexOf(':', i)));
-                            k2 = listConso.indexOf(s.substring(s.indexOf(':', i) + 1, s.indexOf('*', i + 1)));
-                            Sync sync = new Sync(url_site, token,listIdConsos.elementAt(k2),listIdNom.elementAt(k1));
-                            sync.start();
-                            sync.join();
-                            if (sync.code!=204) {
-                                if(sync.code==401)
-                                    Toast.makeText(getApplicationContext(), "Erreur 401, problème d'identification lors de la synchronisation de"+listNoms.elementAt(k1)+ " "+listConso.elementAt(k2)+". Les éléments précédents dans l'historique ont été synchronisés ", Toast.LENGTH_SHORT).show();
-                                else
-                                    Toast.makeText(getApplicationContext(), "Erreur "+sync.code+" lors de la synchronisation de "+listNoms.elementAt(k1)+ " "+listConso.elementAt(k2)+". Les éléments précédents dans l'historique ont été synchronisés", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                            i = s.indexOf('*', i + 1);
+                    int i = 0;
+                    s = s + '*';//le format d'écriture des entrées dans registre.txt est *nom_eleve1:conso1*nom_eleve2:conso2....
+                    Toast.makeText(getApplicationContext(), "Synchronisation...", Toast.LENGTH_SHORT).show();
+                    while (s.indexOf('*', i) < s.length() - 1) {
+                        int k1, k2;
+                        k1 = listNoms.indexOf(s.substring(s.indexOf('*', i) + 1, s.indexOf(':', i)));
+                        k2 = listConso.indexOf(s.substring(s.indexOf(':', i) + 1, s.indexOf('*', i + 1)));
+                        Sync sync = new Sync(url_site, token, listIdConsos.elementAt(k2), listIdNom.elementAt(k1));
+                        sync.start();
+                        sync.join();
+                        if (sync.code / 100 != 2) {
+                            if (sync.code == 401)
+                                Toast.makeText(getApplicationContext(), "Erreur 401, problème d'identification lors de la synchronisation de" + listNoms.elementAt(k1) + " " + listConso.elementAt(k2) + ". Les éléments précédents dans l'historique ont été synchronisés ", Toast.LENGTH_SHORT).show();
+                            else
+                                Toast.makeText(getApplicationContext(), "Erreur " + sync.code + " lors de la synchronisation de " + listNoms.elementAt(k1) + " " + listConso.elementAt(k2) + ". Les éléments précédents dans l'historique ont été synchronisés", Toast.LENGTH_SHORT).show();
+                            return;
                         }
-                        Toast.makeText(getApplicationContext(), "Synchronisation terminée! Pense à tout supprimer!", Toast.LENGTH_SHORT).show();
-
-                    } catch (FileNotFoundException e) {
-                        Toast.makeText(getApplicationContext(), "Fichier registre.txt introuvable", Toast.LENGTH_SHORT).show();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        i = s.indexOf('*', i + 1);
                     }
+                    Toast.makeText(getApplicationContext(), "Synchronisation terminée! Pense à tout supprimer!", Toast.LENGTH_SHORT).show();
+
+                } catch (FileNotFoundException e) {
+                    Toast.makeText(getApplicationContext(), "Fichier registre.txt introuvable", Toast.LENGTH_SHORT).show();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 return;
             }
 
@@ -450,20 +520,25 @@ public class MainActivity extends Activity {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
         if (internet && networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
-            Get_clients t = new Get_clients(this,url_site,token);
+            Get_clients t = new Get_clients(this, url_site, token);
             t.start();
             try {
                 t.join();
-                boolean err=t.erreur;
-                code=t.code;
-                if(!err)
+                boolean err = t.erreur;
+                code = t.code;
+                if (!err)
                     Toast.makeText(getApplicationContext(), "Liste des élèves téléchargée depuis le site", Toast.LENGTH_SHORT).show();
-                else if (code==401){Toast.makeText(getApplicationContext(),"Erreur "+code+". Problème d'identification.",Toast.LENGTH_SHORT).show();return;}
-                else{Toast.makeText(getApplicationContext(),"Erreur "+code,Toast.LENGTH_SHORT);}
+                else if (code == 401) {
+                    Toast.makeText(getApplicationContext(), "Erreur " + code + ". Problème d'identification.", Toast.LENGTH_SHORT).show();
+                    return;
+                } else {
+                    Toast.makeText(getApplicationContext(), "Erreur " + code, Toast.LENGTH_SHORT);
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        } else if(internet) Toast.makeText(getApplicationContext(), "Pas de réseau", Toast.LENGTH_SHORT).show();
+        } else if (internet)
+            Toast.makeText(getApplicationContext(), "Pas de réseau", Toast.LENGTH_SHORT).show();
 
         //LECTURE FICHIER SAUVEGARDE CLIENTS
         String s = "";
@@ -473,15 +548,15 @@ public class MainActivity extends Activity {
             InputStreamReader file = new InputStreamReader(filei, "UTF-8");
             BufferedReader buffreader = new BufferedReader(file);
             String temp;
-            while ((temp=buffreader.readLine()) != null)
+            while ((temp = buffreader.readLine()) != null)
                 s += temp;
         } catch (Exception e) {
             Toast.makeText(getApplicationContext(), "Erreur ouverture fichier clients.txt. Faire une MAJ clients/stocks.", Toast.LENGTH_SHORT);
             return;
         }//s contient tout le fichier
 
-        JSONArray json=new JSONArray(s);
-        for(int i=0;i<json.length();i++){
+        JSONArray json = new JSONArray(s);
+        for (int i = 0; i < json.length(); i++) {
             listNoms.add(json.getJSONObject(i).optString("first_name") + " " + json.getJSONObject(i).optString("last_name"));
             listMails.add(json.getJSONObject(i).optString("email"));
             listIdNom.add(json.getJSONObject(i).optString("username"));
@@ -494,7 +569,7 @@ public class MainActivity extends Activity {
 
         /////On met à jour les stocks après les clients
         if (internet && networkInfo != null && networkInfo.isAvailable() && networkInfo.isConnected()) {
-            Get_products t = new Get_products(this,url_site,token);
+            Get_products t = new Get_products(this, url_site, token);
             t.start();
             try {
                 t.join();
@@ -502,7 +577,8 @@ public class MainActivity extends Activity {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        } else if(internet) Toast.makeText(getApplicationContext(), "Pas de réseau", Toast.LENGTH_SHORT).show();
+        } else if (internet)
+            Toast.makeText(getApplicationContext(), "Pas de réseau", Toast.LENGTH_SHORT).show();
 
         //Lecture fichier sauvegarde consos
         s = "";
@@ -512,23 +588,23 @@ public class MainActivity extends Activity {
             InputStreamReader file = new InputStreamReader(filei, "UTF-8");
             BufferedReader buffreader = new BufferedReader(file);
             String temp;
-            while ((temp=buffreader.readLine()) != null)
+            while ((temp = buffreader.readLine()) != null)
                 s += temp;
         } catch (Exception e) {
             Toast.makeText(getApplicationContext(), "Erreur ouverture fichier stocks.txt. Faire une MAJ clients/stocks.", Toast.LENGTH_SHORT).show();
             return;
         }//s contient tout le fichier
         json = new JSONArray(s);
-        for(int i=0;i<json.length();i++){
+        for (int i = 0; i < json.length(); i++) {
             listConso.add(json.getJSONObject(i).optString("name"));
             listIdConsos.add(json.getJSONObject(i).optString("slug"));
             listPrix.add(json.getJSONObject(i).optDouble("price"));
         }
         adaptaterConso.notifyDataSetChanged();
-        Toast.makeText(getApplicationContext(),"Stock à jour",Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), "Stock à jour", Toast.LENGTH_SHORT).show();
     }//pour obtenir les données de la BDD uPont
 
-    private void getCred(){
+    private void getCred() {
         LayoutInflater inflater = LayoutInflater.from(MainActivity.this);
         final View yourCustomView = inflater.inflate(R.layout.activity_id, null);
 
@@ -561,10 +637,10 @@ public class MainActivity extends Activity {
                                         MainActivity.this.runOnUiThread(new Runnable() {
                                             @Override
                                             public void run() {
-                                                token=null;
-                                                Toast.makeText(MainActivity.this,"Erreur "+code+" lors de la connexion à uPont",Toast.LENGTH_SHORT).show();
-                                                if(code==401)
-                                                    Toast.makeText(MainActivity.this,"Mauvais identifiants/non membre du foyer",Toast.LENGTH_SHORT).show();
+                                                token = null;
+                                                Toast.makeText(MainActivity.this, "Erreur " + code + " lors de la connexion à uPont", Toast.LENGTH_SHORT).show();
+                                                if (code == 401)
+                                                    Toast.makeText(MainActivity.this, "Mauvais identifiants/non membre du foyer", Toast.LENGTH_SHORT).show();
                                             }
                                         });
                                         return;
@@ -573,6 +649,7 @@ public class MainActivity extends Activity {
                                         @Override
                                         public void run() {
                                             Toast.makeText(getApplicationContext(), "Connecté à uPont !", Toast.LENGTH_SHORT).show();
+                                            recharge.setVisibility(View.VISIBLE);
                                         }
                                     });
                                     InputStream is = connect.getInputStream();
@@ -605,7 +682,8 @@ public class MainActivity extends Activity {
         dialog.show();
     }//pour se connecter à uPont
 
-    private void editHist(){
+    private void editHist() {
+        //procédure appelée lorsqu'on choisit historique dans le menu: permet de supprimer des éléments de l'historique en cliquant dessus dans une listview
         listHist.removeAllElements();
         InputStreamReader file;
         try {
@@ -621,22 +699,21 @@ public class MainActivity extends Activity {
                 s += line;
         } catch (Exception e) {
             Toast.makeText(getApplicationContext(), "Impossible de lire le fichier", Toast.LENGTH_SHORT).show();
-        }finally{
+        } finally {
             try {
                 file.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }//s contient tout le fichier
-        final String s2=s;
+        final String s2 = s;
 
 
-        s=s+'*';
-        while(s.indexOf('*')<s.length()-1){
-            s=s.substring(s.indexOf('*')+1);
-            listHist.add(s.substring(0,s.indexOf(':'))+", "+s.substring(s.indexOf(":")+1,s.indexOf('*')));
+        s = s + '*';
+        while (s.indexOf('*') < s.length() - 1) {
+            s = s.substring(s.indexOf('*') + 1);
+            listHist.add(s.substring(0, s.indexOf(':')) + ", " + s.substring(s.indexOf(":") + 1, s.indexOf('*')));
         }
-        listHist.add("RETOUR");
         adaptaterHist.notifyDataSetChanged();
         layout.setVisibility(View.GONE);
         hist.setVisibility(View.VISIBLE);
@@ -644,7 +721,7 @@ public class MainActivity extends Activity {
         hist.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (position < listHist.size() - 1) {
+                if (position < listHist.size()) {
                     int i = -1, j = -1;
                     String s3 = s2;
                     while (i < position) {
@@ -667,22 +744,57 @@ public class MainActivity extends Activity {
                     } else {
                         Toast.makeText(getApplicationContext(), "Rien à effacer!", Toast.LENGTH_SHORT).show();
                     }
+                } else {
+                    layout.setVisibility(View.VISIBLE);
+                    hist.setVisibility(View.GONE);
                 }
                 info.setText(getlastlog("registre.txt"));
                 listHist.remove(position);
                 adaptaterHist.notifyDataSetChanged();
+                editHist();
             }
         });
 
     }//pour supprimer des entrées dans l'historique
 
-    @Override
-    public void onBackPressed() {
-        if(hist.getVisibility()==View.GONE)
-            super.onBackPressed();
-        else{
-            hist.setVisibility(View.GONE);
-            layout.setVisibility(View.VISIBLE);
+    //DECLARATION DES LISTENERS
+    View.OnClickListener rechargeListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            recharger();
         }
-    }
+    };
+    View.OnClickListener okListener = new View.OnClickListener() {
+        //on écrit la/les conso(s) dans le fichier registre.txt
+        @Override
+        public void onClick(View v) {
+            writeRegister();
+
+        }
+    };
+    View.OnClickListener menuListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            showMenu();
+        }
+    };
+    AutoCompleteTextView.OnDismissListener consoDismissListener = new AutoCompleteTextView.OnDismissListener() {
+        @Override
+        public void onDismiss() {
+            searchPrices();
+        }
+    };
+    AutoCompleteTextView.OnDismissListener nomDismissListener = new AutoCompleteTextView.OnDismissListener() {
+        @Override
+        public void onDismiss() {
+            searchName();
+        }
+    };
+    AdapterView.OnItemClickListener consoItemListener = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+            InputMethodManager in = (InputMethodManager) getSystemService(MainActivity.INPUT_METHOD_SERVICE);
+            in.hideSoftInputFromWindow(view.getApplicationWindowToken(), 0);
+        }
+    };
 }

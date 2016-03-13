@@ -33,6 +33,11 @@
         android:title="Contacter les déficitaires"
         app:showAsAction="never" />
     <item
+        android:id="@+id/recharger"
+        android:orderInCategory="100"
+        android:title="Créditer un compte"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/blank"
         android:orderInCategory="120"
         android:title="" />
